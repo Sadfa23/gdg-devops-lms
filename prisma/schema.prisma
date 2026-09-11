@@ -1,0 +1,348 @@
+// GDG DevOps LMS — schema v1 (single tutor, single year, no badges).
+// Source of truth for the shape: dbdiagram.io DBML worked out with the design
+// handoff (design_handoff_gdg_devops_lms). XP totals, rank, streaks and
+// accuracy are DERIVED at query time (see src/lib/xp.ts), not stored columns.
+
+// Prisma 7 requires an explicit `output` — it no longer generates into
+// node_modules/@prisma/client by default. Import from "@/generated/prisma"
+// (see src/lib/db.ts), not from "@prisma/client" directly.
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Connection URL lives in prisma.config.ts now, not here — Prisma 7 moved it
+// (schema-level `url` errors with P1012). See prisma.config.ts and src/lib/db.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  learner
+  admin
+}
+
+enum UserStatus {
+  pending
+  active
+  at_risk
+  suspended
+}
+
+enum LessonVisibility {
+  draft
+  scheduled
+  live
+}
+
+enum LessonLevel {
+  core
+  deep_dive
+  optional
+}
+
+enum LessonProgressState {
+  todo
+  current
+  done
+}
+
+enum Difficulty {
+  recall
+  core
+  applied
+}
+
+enum LabState {
+  in_review
+  passed
+  changes_asked
+  overdue
+}
+
+enum PostStatus {
+  draft
+  live
+}
+
+enum PostCategory {
+  guide
+  teardown
+  career
+  notes
+  security
+}
+
+enum AccentColor {
+  blue
+  red
+  yellow
+  green
+  none
+}
+
+// --- Auth.js (NextAuth v5) + app-specific fields, merged onto one User model ---
+
+model User {
+  id                 String      @id @default(uuid()) @db.Uuid
+  email              String      @unique
+  emailVerified      DateTime?
+  name               String
+  image              String?
+  password           String? // bcrypt hash — null for OAuth-only accounts, dev/testing credentials login
+  registrationNumber String? // e.g. "SCT221-0412/2023" — null for admin
+  role               Role        @default(learner)
+  status             UserStatus  @default(pending)
+  focusArea          String? // mono label, e.g. "PLATFORM · K8S"
+  accent             AccentColor @default(none) // avatar square color
+  joinedAt           DateTime    @default(now())
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  lessonsCreated       Lesson[]         @relation("LessonCreatedBy")
+  lessonProgress       LessonProgress[]
+  quizAttempts         QuizAttempt[]
+  labSubmissions       LabSubmission[]  @relation("LabSubmissionOwner")
+  labSubmissionsGraded LabSubmission[]  @relation("LabSubmissionGradedBy")
+  posts                Post[]
+}
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// --- Curriculum ---
+
+model Module {
+  id          String  @id @default(uuid()) @db.Uuid
+  number      Int // display label, e.g. 4 — NOT unique, so a module can be
+  // inserted/split later without a migration fighting the constraint
+  title       String
+  description String?
+  position    Int // real ordering field
+
+  lessons Lesson[]
+  labs    Lab[]
+}
+
+model Lesson {
+  id               String           @id @default(uuid()) @db.Uuid
+  moduleId         String           @db.Uuid
+  code             String           @unique // "04.03"
+  title            String
+  summary          String?
+  videoPublicId    String? // Cloudinary public ID — legacy lessons only, capped at 100MB on the free plan
+  posterPublicId   String?
+  captionsPublicId String?
+  bunnyVideoId     String? // Bunny Stream video GUID — the path for every new lesson recording (no size cap)
+  transcript       String?
+  durationSeconds  Int?
+  xp               Int              @default(0)
+  level            LessonLevel      @default(core)
+  visibility       LessonVisibility @default(draft)
+  scheduledFor     DateTime?
+  position         Int
+  createdById      String?          @db.Uuid
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  module       Module           @relation(fields: [moduleId], references: [id])
+  createdBy    User?            @relation("LessonCreatedBy", fields: [createdById], references: [id])
+  chapters     Chapter[]
+  takeaways    Takeaway[]
+  progress     LessonProgress[]
+  quizSettings QuizSettings?
+  questions    Question[]
+  quizAttempts QuizAttempt[]
+}
+
+model Chapter {
+  id              String @id @default(uuid()) @db.Uuid
+  lessonId        String @db.Uuid
+  timecodeSeconds Int
+  label           String
+  position        Int
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Takeaway {
+  id       String @id @default(uuid()) @db.Uuid
+  lessonId String @db.Uuid
+  code     String // "K1"
+  text     String
+  position Int
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model LessonProgress {
+  id             String              @id @default(uuid()) @db.Uuid
+  userId         String              @db.Uuid
+  lessonId       String              @db.Uuid
+  state          LessonProgressState @default(todo)
+  watchedSeconds Int                 @default(0)
+  completedAt    DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+}
+
+// --- Quizzes ---
+
+model QuizSettings {
+  id                         String  @id @default(uuid()) @db.Uuid
+  lessonId                   String  @unique @db.Uuid
+  passMarkPercent            Int     @default(70)
+  timeLimitMinutes           Int     @default(10)
+  attemptsAllowed            Int     @default(2) // 0 = unlimited
+  shuffleQuestions           Boolean @default(true)
+  shuffleOptions             Boolean @default(false)
+  showExplanationImmediately Boolean @default(true)
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Question {
+  id          String     @id @default(uuid()) @db.Uuid
+  lessonId    String     @db.Uuid
+  prompt      String
+  topic       String? // mono label, e.g. "MODULE 04 · DEPLOY ORDERING"
+  points      Int        @default(10)
+  difficulty  Difficulty @default(core)
+  explanation String?
+  position    Int
+
+  lesson    Lesson             @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  options   Option[]
+  responses QuestionResponse[]
+}
+
+model Option {
+  id         String  @id @default(uuid()) @db.Uuid
+  questionId String  @db.Uuid
+  text       String
+  isCorrect  Boolean @default(false)
+  position   Int
+
+  question  Question           @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  responses QuestionResponse[]
+}
+
+model QuizAttempt {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Uuid
+  lessonId      String    @db.Uuid
+  attemptNumber Int
+  scorePercent  Int?
+  passed        Boolean?
+  startedAt     DateTime  @default(now())
+  submittedAt   DateTime?
+
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson    Lesson             @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  responses QuestionResponse[]
+
+  @@unique([userId, lessonId, attemptNumber])
+}
+
+model QuestionResponse {
+  id               String   @id @default(uuid()) @db.Uuid
+  quizAttemptId    String   @db.Uuid
+  questionId       String   @db.Uuid
+  selectedOptionId String?  @db.Uuid // null = unanswered / timed out
+  isCorrect        Boolean
+  xpAwarded        Int      @default(0)
+  answeredAt       DateTime @default(now())
+
+  quizAttempt    QuizAttempt @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+  question       Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption Option?     @relation(fields: [selectedOptionId], references: [id])
+}
+
+// --- Labs ---
+
+model Lab {
+  id                  String  @id @default(uuid()) @db.Uuid
+  moduleId            String? @db.Uuid // null for BONUS labs, not tied to a module
+  code                String  @unique // "LAB 04", "BONUS"
+  title               String
+  rubricCriteriaCount Int?
+
+  module      Module?         @relation(fields: [moduleId], references: [id])
+  submissions LabSubmission[]
+}
+
+model LabSubmission {
+  id          String    @id @default(uuid()) @db.Uuid
+  labId       String    @db.Uuid
+  userId      String    @db.Uuid
+  repoUrl     String
+  state       LabState  @default(in_review)
+  grade       Int?
+  feedback    String?
+  submittedAt DateTime  @default(now())
+  gradedAt    DateTime?
+  gradedById  String?   @db.Uuid
+
+  lab      Lab   @relation(fields: [labId], references: [id], onDelete: Cascade)
+  user     User  @relation("LabSubmissionOwner", fields: [userId], references: [id], onDelete: Cascade)
+  gradedBy User? @relation("LabSubmissionGradedBy", fields: [gradedById], references: [id])
+}
+
+// --- Blog ---
+// Content is a single Markdown document (not discrete block rows) — the
+// admin compose page is a plain textarea + toolbar that inserts snippets at
+// the caret (heading/bold/code/link/image/video/diagram/callout), rendered
+// through react-markdown + remark-gfm on read. Chosen over a structured
+// block table specifically to fix "an inserted image lands at the bottom
+// instead of where the cursor was" — caret-position insertion into one text
+// field can't misplace content the way a separate "append block" action did.
+
+model Post {
+  id              String        @id @default(uuid()) @db.Uuid
+  authorId        String        @db.Uuid
+  slug            String        @unique // derived from title at creation — see features/blog/slug.ts
+  title           String
+  kicker          String?
+  deck            String?
+  category        PostCategory?
+  bannerPublicId  String?
+  content         String        @default("") @db.Text
+  status          PostStatus    @default(draft)
+  readTimeMinutes Int? // derived from `content` word count on every save — see lib/reading-time.ts
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  author User @relation(fields: [authorId], references: [id])
+}

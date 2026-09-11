@@ -1,0 +1,162 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * GDG DevOps LMS — design tokens.
+ * Source: GDG DevOps Learning Platform/design_handoff_gdg_devops_lms/README.md §Design Tokens.
+ * Modernist / Swiss editorial, dark-first. Zero radius, no shadows anywhere.
+ */
+
+/*
+ * Light is the default theme (product decision — the handoff's own prototype
+ * defaults to dark, ours doesn't). So light lives on bare :root, and dark
+ * becomes the explicit override, flipped from the handoff's original
+ * structure. next-themes toggles the `data-theme` attribute (see
+ * components/theme-provider.tsx) between "light" and "dark" and persists it.
+ */
+:root {
+  --bg: #f3f2f2;
+  --surface: #ffffff;
+  --elev: #eae9e9;
+  --ink: #201e1d;
+  --muted: #605d5d;
+  --line: rgba(32, 30, 29, 0.16);
+  --line-strong: rgba(32, 30, 29, 0.42);
+  --accent: #dd2b0f;
+  --accent-ink: #ae1800;
+  --accent-soft: rgba(236, 48, 19, 0.09);
+  --grid: rgba(32, 30, 29, 0.07);
+  --plate: rgba(32, 30, 29, 0.03);
+
+  /* status / data palette — both themes, per README */
+  --g-blue: #4285f4;
+  --g-red: #ea4335;
+  --g-yellow: #fbbc04;
+  --g-green: #34a853;
+
+  --radius: 0px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --elev: #171717;
+  --ink: #f4f2f0;
+  --muted: #8f8b88;
+  --line: rgba(255, 255, 255, 0.13);
+  --line-strong: rgba(255, 255, 255, 0.3);
+  --accent: #ec3013;
+  --accent-ink: #ff6a4d;
+  --accent-soft: rgba(236, 48, 19, 0.16);
+  --grid: rgba(255, 255, 255, 0.055);
+  --plate: rgba(255, 255, 255, 0.035);
+}
+
+@theme inline {
+  /* raw GDG tokens, exposed directly as utilities: bg-surface, text-muted, border-line, etc. */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-elev: var(--elev);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-grid: var(--grid);
+  --color-plate: var(--plate);
+  --color-g-blue: var(--g-blue);
+  --color-g-red: var(--g-red);
+  --color-g-yellow: var(--g-yellow);
+  --color-g-green: var(--g-green);
+
+  /*
+   * shadcn-convention aliases, for vendored components in components/ui/.
+   * NOTE: shadcn's `accent`/`accent-foreground` conventionally means a subtle
+   * hover surface (menu-item hover), NOT a brand color — mapping it to GDG's
+   * brand red would make every hover state flash the "error/CTA" color, which
+   * the design explicitly forbids (brand red is reserved for primary CTA,
+   * active markers, and destructive/error state — never decoration). So:
+   * `primary` carries the brand accent; `accent` carries the ghost-hover plate.
+   */
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--bg);
+  --color-secondary: var(--elev);
+  --color-secondary-foreground: var(--ink);
+  --color-muted-surface: var(--elev);
+  --color-muted-foreground: var(--muted);
+  --color-accent-surface: var(--plate);
+  --color-accent-surface-foreground: var(--ink);
+  --color-destructive: var(--accent);
+  --color-destructive-foreground: var(--bg);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--accent);
+
+  --radius-none: 0px;
+
+  --font-sans: var(--font-archivo);
+  --font-mono: var(--font-plex-mono);
+
+  --animate-gdg-pulse: gdg-pulse 2s ease-in-out infinite;
+  --animate-gdg-sweep: gdg-sweep 1.4s ease-in-out infinite;
+  --animate-fade-in: fade-in 400ms ease;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes gdg-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes gdg-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(320%);
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Belt-and-suspenders enforcement of "zero radius, no shadows, ever" — rather
+ * than hand-stripping rounded-* and shadow-* utility classes out of every
+ * vendored shadcn component one by one (and re-stripping every time a new one is added
+ * via the CLI), block both properties globally. Consequence: Tailwind's
+ * `ring-*` utilities compile to box-shadow and will silently do nothing under
+ * this rule — use `outline` for focus indication everywhere instead (matches
+ * the design spec's own focus treatment: `2px solid var(--accent)` outline).
+ */
+* {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
