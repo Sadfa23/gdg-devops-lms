@@ -6,7 +6,10 @@ import { AuthForm } from "@/features/auth/components/AuthForm";
 /** The design's split auth panel (README §2), extended with real
  * email+password fields — see AuthForm's own comment for why credentials
  * auth exists alongside OAuth. */
-export default function SignInPage() {
+export default async function SignInPage(props: PageProps<"/sign-in">) {
+  const searchParams = await props.searchParams;
+  const justReset = searchParams.reset === "1";
+
   return (
     <div className="grid min-h-screen grid-cols-1 md:grid-cols-2">
       <div className="flex flex-col justify-between border-b-2 border-line p-9 md:border-b-0 md:border-r-2">
@@ -22,7 +25,7 @@ export default function SignInPage() {
           <h1 className="mb-2.5 text-[40px] font-extrabold tracking-[-0.03em] text-ink">Welcome back.</h1>
           <p className="mb-7 text-muted">Sign in with the account your club membership is tied to.</p>
 
-          <AuthForm />
+          <AuthForm justReset={justReset} />
         </div>
 
         <span aria-hidden />

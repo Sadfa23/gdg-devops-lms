@@ -19,6 +19,11 @@ const envSchema = z.object({
   BUNNY_STREAM_CDN_HOSTNAME: z.string().min(1),
   NEXT_PUBLIC_TOPOGRAPH_URL: z.string().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
+  RESEND_API_KEY: z.string().min(1),
+  // Resend's shared test address — works with no domain setup, but only ever
+  // delivers to the Resend account's own owner email. Swap for a
+  // verified-domain address once real members need to receive these.
+  EMAIL_FROM: z.string().min(1).default("GDG DevOps LMS <onboarding@resend.dev>"),
 });
 
 export const env = envSchema.parse(process.env);

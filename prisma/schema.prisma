@@ -99,8 +99,9 @@ model User {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  accounts Account[]
-  sessions Session[]
+  accounts    Account[]
+  sessions    Session[]
+  resetTokens PasswordResetToken[]
 
   lessonsCreated       Lesson[]         @relation("LessonCreatedBy")
   lessonProgress       LessonProgress[]
@@ -136,6 +137,22 @@ model Session {
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Password reset — only the SHA-256 hash of the token is stored, same
+// principle as the password itself: a stolen row isn't a usable token. Single
+// use (usedAt) and short-lived (expiresAt, 30 min — see src/lib/email.ts).
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // --- Curriculum ---

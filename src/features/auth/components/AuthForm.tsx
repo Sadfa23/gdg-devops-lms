@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { signInWithCredentials, signInWithGithub, signInWithGoogle, signUp } from "../actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ type Mode = "signin" | "signup";
  * just a mockup. OAuth buttons live outside this component (sign-in/page.tsx),
  * since they're plain server actions with no client state of their own.
  */
-export function AuthForm() {
+export function AuthForm({ justReset }: { justReset?: boolean }) {
   const [mode, setMode] = useState<Mode>("signin");
   const [signInState, signInAction, signInPending] = useActionState(signInWithCredentials, undefined);
   const [signUpState, signUpAction, signUpPending] = useActionState(signUp, undefined);
@@ -49,6 +50,9 @@ export function AuthForm() {
         </button>
       </div>
 
+      {justReset && mode === "signin" && !state?.error && (
+        <p className="border-l-2 border-g-green bg-g-green/10 px-3 py-2 text-[13px] text-ink">Password updated — sign in with your new password.</p>
+      )}
       {state?.error && <p className="border-l-2 border-accent bg-accent-soft px-3 py-2 text-[13px] text-accent-ink">{state.error}</p>}
 
       <form action={mode === "signin" ? signInAction : signUpAction} className="flex flex-col gap-4">
@@ -71,7 +75,14 @@ export function AuthForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="password">Password</Label>
+          <div className="flex items-baseline justify-between">
+            <Label htmlFor="password">Password</Label>
+            {mode === "signin" && (
+              <Link href="/forgot-password" className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted hover:text-accent">
+                Forgot?
+              </Link>
+            )}
+          </div>
           <Input id="password" name="password" type="password" required minLength={mode === "signup" ? 8 : undefined} />
         </div>
 

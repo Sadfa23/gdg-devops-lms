@@ -14,7 +14,7 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 const SESSION_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"];
 
-const PUBLIC_PATHS = ["/", "/pipeline", "/tools", "/blog", "/sign-in", "/sign-up"];
+const PUBLIC_PATHS = ["/", "/pipeline", "/tools", "/blog", "/sign-in", "/sign-up", "/forgot-password", "/reset-password"];
 
 export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

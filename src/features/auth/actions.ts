@@ -1,10 +1,14 @@
 "use server";
 
+import { randomBytes, createHash } from "crypto";
 import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { signIn } from "@/lib/auth";
-import { signInSchema, signUpSchema } from "./schema";
+import { sendPasswordResetEmail } from "@/lib/email";
+import { originUrl } from "@/lib/origin";
+import { signInSchema, signUpSchema, forgotPasswordSchema, resetPasswordSchema } from "./schema";
 
 export type SignInState = { error?: string } | undefined;
 
@@ -67,4 +71,58 @@ export async function signInWithGoogle() {
 
 export async function signInWithGithub() {
   await signIn("github", { redirectTo: "/dashboard?welcome=1" });
+}
+
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
+
+function hashToken(rawToken: string): string {
+  return createHash("sha256").update(rawToken).digest("hex");
+}
+
+export type ForgotPasswordState = { message: string } | undefined;
+
+/**
+ * Always returns the same message whether or not the email is registered —
+ * telling the caller "no account with that email" would let anyone check
+ * who's signed up, one email at a time.
+ */
+export async function requestPasswordReset(_prevState: ForgotPasswordState, formData: FormData): Promise<ForgotPasswordState> {
+  const parsed = forgotPasswordSchema.safeParse(Object.fromEntries(formData));
+  const genericMessage = "If that email has an account, we've sent a reset link — check your inbox.";
+  if (!parsed.success) return { message: genericMessage };
+
+  const user = await db.user.findUnique({ where: { email: parsed.data.email } });
+  if (user) {
+    const rawToken = randomBytes(32).toString("hex");
+    await db.passwordResetToken.create({
+      data: { userId: user.id, tokenHash: hashToken(rawToken), expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS) },
+    });
+
+    const origin = await originUrl();
+    await sendPasswordResetEmail(user.email, `${origin}/reset-password/${rawToken}`);
+  }
+
+  return { message: genericMessage };
+}
+
+export type ResetPasswordState = { error?: string } | undefined;
+
+export async function resetPassword(_prevState: ResetPasswordState, formData: FormData): Promise<ResetPasswordState> {
+  const parsed = resetPasswordSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  const record = await db.passwordResetToken.findUnique({ where: { tokenHash: hashToken(parsed.data.token) } });
+  if (!record || record.usedAt || record.expiresAt < new Date()) {
+    return { error: "That reset link is invalid or has expired — request a new one." };
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  await db.$transaction([
+    db.user.update({ where: { id: record.userId }, data: { password: passwordHash } }),
+    db.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+  ]);
+
+  redirect("/sign-in?reset=1");
 }
