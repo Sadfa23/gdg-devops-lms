@@ -4,6 +4,8 @@ import { SiteHeader } from "@/components/shell/SiteHeader";
 import { PipelineSection } from "@/features/landing/components/PipelineSection";
 import { Button } from "@/components/ui/button";
 import { listPublishedPosts } from "@/features/blog/data";
+import { SessionCalendar } from "@/features/schedule/SessionCalendar";
+import { ScheduleLegend } from "@/features/schedule/ScheduleLegend";
 
 // Shows live post data — rendered per-request, not frozen at build time.
 export const dynamic = "force-dynamic";
@@ -67,6 +69,25 @@ export default async function LandingPage() {
       </section>
 
       <PipelineSection />
+
+      <section id="schedule" className="scroll-mt-20 border-b-2 border-line">
+        <div className="flex flex-wrap items-baseline justify-between gap-6 px-6 pb-6 pt-8 md:px-12">
+          <h2 className="m-0 text-[clamp(28px,3.4vw,46px)] tracking-[-0.03em] text-ink">What we&apos;ll cover, session by session</h2>
+          <span className="whitespace-nowrap font-mono text-[11px] tracking-[0.14em] text-muted">Tue &amp; Thu · Sep 2026 – Mar 2027</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 pb-8 md:px-12">
+          <p className="max-w-[70ch] text-[16px] text-muted">
+            Two semesters, forty-one sessions. Semester 1 needs nothing but a browser and a free Google account — every hands-on runs in
+            Cloud Shell. Pick a date to see what we&apos;re building.
+          </p>
+          <ScheduleLegend />
+        </div>
+        <div className="border-t border-line px-6 py-10 md:px-12">
+          <div className="mx-auto max-w-[1180px]">
+            <SessionCalendar />
+          </div>
+        </div>
+      </section>
 
       <section id="tools" className="border-b-2 border-line">
         <div className="flex items-baseline justify-between gap-6 px-6 pb-6 pt-8 md:px-12">

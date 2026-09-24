@@ -18,6 +18,9 @@ export function SiteHeader() {
         <a href="#pipeline" className="hover:text-accent-ink">
           Pipeline
         </a>
+        <a href="#schedule" className="hover:text-accent-ink">
+          Schedule
+        </a>
         <a href="#tools" className="hover:text-accent-ink">
           Tools
         </a>

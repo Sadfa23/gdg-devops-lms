@@ -1,5 +1,6 @@
 import {
   LayoutDashboard,
+  CalendarDays,
   PlayCircle,
   ListChecks,
   FolderGit2,
@@ -25,6 +26,7 @@ export type NavItem = { href: string; label: string; icon: LucideIcon };
  * reached via the identity block at the bottom of the sidebar, per the design. */
 export const NAV_LEARN: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/lessons", label: "Video lessons", icon: PlayCircle },
   { href: "/quiz", label: "Quizzes", icon: ListChecks },
   { href: "/submissions", label: "Submissions", icon: FolderGit2 },

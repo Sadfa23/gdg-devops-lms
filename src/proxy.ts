@@ -22,6 +22,17 @@ export default function proxy(req: NextRequest) {
   if (isPublic) return NextResponse.next();
 
   const hasSessionCookie = SESSION_COOKIE_NAMES.some((name) => req.cookies.has(name));
+
+  // The schedule is public on the landing page; the /schedule route is just the
+  // members' copy inside the app shell. Send logged-out visitors (e.g. someone
+  // opening a member's shared ?date= link) to the public section, not sign-in.
+  if (pathname === "/schedule" && !hasSessionCookie) {
+    const url = new URL("/", req.url);
+    url.search = req.nextUrl.search;
+    url.hash = "schedule";
+    return NextResponse.redirect(url);
+  }
+
   if (!hasSessionCookie) {
     return NextResponse.redirect(new URL("/sign-in", req.url));
   }
